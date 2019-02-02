@@ -11,8 +11,15 @@ enum json_type {
 	JSON_NULL
 };
 
-struct gejson_parser {
-	char* buffer;
+enum gejson_parser_state {
+	GEJSON_START,
+	GEJSON_OBJECT_START,
+	GEJSON_ARRAY_START
+};
+
+enum gejson_error {
+	GEJSON_ERROR_INTERNAL = -256,
+	GEJSON_ERROR_INVALID
 };
 
 struct gejson_number {
@@ -46,6 +53,13 @@ struct gejson_array {
 	union json_value *value;
 };
 
+struct gejson_parser {
+	struct gejson_obj object;
+	enum gejson_parser_state state;
+};
+
+
+
 struct gejson_parser *gejson_create_parser(int flags);
 struct gejson_encoder *gejson_create_encoder(int flags);
 
@@ -58,13 +72,22 @@ struct gejson_encoder *gejson_create_encoder(int flags);
 /* TODO define error types */
 int gejson_push_fragment(
 		struct gejson_parser* parser,
-		char* fragment);
+		char *fragment);
 
 /* Retrieves the gejson_obj after the parsing has finished.
  * Also resets the encoder state,
  * making it ready for a new object */
 struct gejson_obj *gejson_finish_parsing(
 		struct gejson_parser* paser);
+
+/* resets the parser to a fresh state,
+ * discarding all its data */
+void gejson_reset_parser(
+		struct gejson_parser* parser);
+
+/* frees the memory, used by parser */
+/* this makes parser unusable */
+void gejson_free_parser(struct gejson_parser *parser);
 
 /* Recursively frees the complete obect,
  * therefore deleting it from memory */
