@@ -16,7 +16,7 @@ struct gejson_parser *gejson_create_parser(int flags)
 int gejson_push_fragmet(struct gejson_parser *parser, char *fragment)
 {
 	int incomplete = 1;
-	for(unsigned int i; fragment[i] != '\0'; i++) {
+	for(unsigned int i = 0; fragment[i] != '\0'; i++) {
 		if ((parser->state == GEJSON_START ||
 		     parser->state == GEJSON_OBJECT_START ||
 		     parser->state == GEJSON_ARRAY_START) &&
