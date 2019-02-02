@@ -17,7 +17,7 @@ lib/libgejson.a: $(DEP) $(OBJ)
 $(OBJDIR)/%.d: $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -E -MM -MF $@ -MT $(@:.d=.o) -c $^
 
-include $(DEP)
+-include $(DEP)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
 	$(info Making $@)
