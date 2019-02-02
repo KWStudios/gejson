@@ -9,13 +9,13 @@ OBJ = $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SRC))
 
 DEP = $(OBJ:.o=.d)
 
-libgejson.a: $(DEP) $(OBJ)
+lib/libgejson.a: $(DEP) $(OBJ)
 	$(info Making $@)
 	ar -rcs lib/libgejson.a $(OBJ)
 	cp src/gejson.h include/gejson.h
 
 $(OBJDIR)/%.d: $(SRCDIR)/%.c
-	$(CC) $(CFLAGS) -E -MM -MF $@ -c $^
+	$(CC) $(CFLAGS) -E -MM -MF $@ -MT $(@:.d=.o) -c $^
 
 include $(DEP)
 
