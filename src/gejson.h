@@ -14,11 +14,16 @@ enum json_type {
 enum gejson_parser_state {
 	GEJSON_START,
 	GEJSON_OBJECT_START,
-	GEJSON_ARRAY_START
+	GEJSON_ARRAY_START,
+	GEJSON_OBJECT_KEY,
+	GEJSON_OBJECT_AFTERVALUE,
+	GEJSON_ARRAY_AFTERVALUE,
+	GEJSON_DECIDEVALUE
 };
 
 enum gejson_error {
 	GEJSON_ERROR_INTERNAL = -256,
+	GEJSON_ERROR_NOMEM,
 	GEJSON_ERROR_INVALID
 };
 
@@ -29,33 +34,46 @@ struct gejson_number {
 };
 
 /* resolve circular reference */
-struct gejson_obj;
-struct gejson_array;
+struct gejson_value;
 
-union json_value {
-	char *string;
-	struct gejson_number number;
-	struct gejson_obj *object;
-	struct gejson_array *array;
+struct gejson_parent {
+	enum gejson_type type;
+	union {
+		struct gejson_array *array;
+		struct gejson_obj *object;
+	};
 };
 
 /* "value" will be a nullpointer in case of true, false
  * and null */
 struct gejson_obj {
-	char *key;
-	enum json_type type;
-	union json_value value;	
+	unsigned long size;
+	char **key;
+	union json_value *value;
+	struct gejson_parent parent;
 };
 
 struct gejson_array {
 	unsigned long size;
-	enum json_type *type;
-	union json_value *value;
+	struct json_value *value;
+	struct gejson_parent parent;
+};
+
+struct json_value {
+	enum json_type type;
+	union {
+		char *string;
+		struct gejson_number number;
+		struct gejson_obj *object;
+		struct gejson_array *array;
+	};
 };
 
 struct gejson_parser {
 	struct gejson_obj object;
+	void *current_element;
 	enum gejson_parser_state state;
+	unsigned long consumed_chars;
 };
 
 
