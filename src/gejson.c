@@ -1,5 +1,6 @@
 #include "gejson.h"
 
+#include <string.h>
 #include <stdlib.h>
 
 #define IS_WHITESPACE(X) \
@@ -13,124 +14,267 @@ struct gejson_parser *gejson_create_parser(int flags)
 	return parser;
 }
 
+int gejson_start(struct gejson_parser *parser, char c);
+int gejson_key_before(struct gejson_parser *parser, char c);
+int gejson_key(struct gejson_parser *parser, char c);
+int gejson_key_after(struct gejson_parser *parser, char c);
+int gejson_value_before(struct gejson_parser *parser, char c);
+int gejson_value(struct gejson_parser *parser, char c);
+int gejson_value_after(struct gejson_parser *parser, char c);
+
+
+int gejson_push_fragment(struct gejson_parser *parser, char *fragment)
+{
+	for(unsigned int i = 0; fragment[i] != '\0'; i++) {
+		int result;
+		parser->consumed_chars++;
+		if(parser->state != GEJSON_KEY &&
+				parser->state != GEJSON_VALUE &&
+				IS_WHITESPACE(fragment[i])) {
+			continue;
+		}
+
+		switch(parser->state) {
+		case GEJSON_START:
+			result = gejson_start(parser, fragment[i]);
+			break;
+		case GEJSON_KEY_BEFORE:
+			result = gejson_key_before(parser, fragment[i]);
+			break;
+		case GEJSON_KEY:
+			result = gejson_key(parser, fragment[i]);
+			break;
+		case GEJSON_KEY_AFTER:
+			result = gejson_key_after(parser, fragment[i]);
+			break;
+		case GEJSON_VALUE_BEFORE:
+			result = gejson_value_before(parser, fragment[i]);
+			break;
+		case GEJSON_VALUE:
+			result = gejson_value(parser, fragment[i]);
+			break;
+		case GEJSON_VALUE_AFTER:
+			result = gejson_value_after(parser, fragment[i]);
+			break;
+		default: 
+			return GEJSON_ERROR_INVERNAL;
+		}
+		if(result != 1)
+			return result;
+	}
+	return 1;
+}
+
+int gejson_start(struct gejson_parser *parser, char c)
+{
+	/* this indicates that there is no parent */
+	parser->object.parent.type = JSON_NULL;
+	if(c == '{') {
+		parser->current.type = GEJSON_OBJECT;
+		parser->current.object = &parser->object;
+		parser->state = GEJSON_KEY_BEFORE;
+		return 1;
+	} else if(c == '[') {
+		/* Make a new array as child of the top object.
+		 * The key will be NULL because it is not an actual child
+		 * but the representation does not allow a toplevel array */
+		parser->object.size = 1;
+		parser->object.key = malloc(sizeof(char *));
+		if(parser->object.key == 0)
+			return GEJSON_ERROR_NOMEM;
+		parser->object.key[0] = NULL;
+		parser->object.value =
+			calloc(1, sizeof(struct json_value));
+		if(parser->object.value == 0)
+			return GEJSON_ERROR_NOMEM;
+		parser->object.value->type = JSON_ARRAY;
+		parser->object.value->array =
+			calloc(1, sizeof(struct gejson_array));
+		if(parser->object.value.array == 0)
+			return GEJSON_ERROR_NOMEM;
+		praser->current_element = 
+			parser->object.value.array;
+		parser->state = GEJSON_VALUE_BEFORE;
+		return 1;
+	} else {
+		return GEJSON_ERROR_INVALID;
+	}
+}
+
+int gejson_key_before(struct gejson_parser *parser, char c)
+{
+	struct gejson_obj *object = parser->current.object;
+	if(c == '\"') {
+		parser->state = GEJSON_KEY;
+		return 1;
+	} else if(c == '}') {
+		switch(oject->parent.type) {
+		case JSON_NULL:
+			return 0;
+			break;
+		case JSON_OBJECT:
+			parser->current.type = GEJSON_OBJECT;
+			parser->current.object = object->parent.object;
+			break;
+		case JSON_ARRAY:
+			parser->current.type = GEJSON_ARRAY;
+			parser->current.array = object->parent.array;
+			break;
+		default:
+			return GEJSON_ERROR_INTERNAL;
+		}
+		parser->state = GEJSON_VALUE_AFTER;
+		return 1;
+	}
+	return GEJSON_ERROR_INVALID;
+}
+
+int gejson_key(struct gejson_parser *parser, char c)
+{
+	struct gejson_obj *object = parser->current.object;
+	if(object->key[size - 1] == NULL) {
+		object->key[size - 1] = calloc(2, sizeof(char));
+		if(object->key[size - 1] == NULL)
+			return GEJSON_ERROR_NOMEM;
+	}
+	if(string_incrementor(object->key[size - 1], c)) {
+		parser->state = GEJSON_KEY_AFTER;
+	} else {
+		object->key[size - 1] = realloc(
+				object->key[size - 1],
+				strlen(object->key[size - 1]));
+		if(object->key[size - 1] == NULL)
+			return GEJSON_ERROR_NOMEM;
+		object->key[size - 1][strlen(object->key[size - 1]) + 1] = '\0';
+	}
+	return 1;
+}
+
+int gejson_key_after(struct gejson_parser *parser, char c)
+{
+	if(c == ':') {
+		parser->state = GEJSON_VALUE_BEFORE;
+		return 1;
+	}
+	return GEJSON_ERROR_INVALID;
+}
+
+int gejson_value_before(struct gejson_parser *parser, char c)
+{
+	struct gejson_parent *current = &parser->current;
+	if(c >= '0' && c <= '9' || c == '-') {
+		struct gejson_value *value;
+		unsigned long *ao_size;
+		/* start of number */
+		if(current->type == JSON_ARRAY) {
+			struct gejson_array *array = current->array;
+			value = array->value;
+			ao_size = &array->size;
+		} else if(current->type == JSON_OBJECT) {
+			struct gejson_object *object = current->object;
+			value = object->value;
+			ao_size = &object->size;
+		} else {
+			return GEJSON_ERROR_INTERNAL;
+		}
+
+		if(*size == 0) {
+			value = calloc(
+					1,
+					sizeof(struct gejson_value));
+			if(value == 0)
+				return GEJSON_ERROR_NOMEM;
+		} else {
+			value = realloc(*size + 1,
+					sizeof(struct gejson_value));
+			memset(value + *size,
+					0,
+					sizeof(struct gejson_value));
+			if(value == 0)
+				return GEJSON_ERROR_NOMEM;
+		}
+		(*size)++;
+		value[*size - 1].type = GEJSON_NUMBER;
+
+		parser->state = GEJSON_VALUE;
+	} else {
+		switch(c) {
+		case '\"':
+			/* start of string */
+			break;
+		case '{' :
+			/* start of object */
+			break;
+		case '[':
+			/* start of array */
+			break;
+		case 't':
+			/* start of true */
+			break;
+		case 'f':
+			/* start of false */
+			break;
+		default: return GEJSON_ERROR_INVALID;
+		}
+	}
+	return 1;
+}
+
 int gejson_push_fragmet(struct gejson_parser *parser, char *fragment)
 {
 	int incomplete = 1;
 	for(unsigned int i = 0; fragment[i] != '\0'; i++) {
-		parser->consumed_chars++;
-		if ((parser->state == GEJSON_START ||
-		     parser->state == GEJSON_OBJECT_START ||
-		     parser->state == GEJSON_ARRAY_START) &&
-		     IS_WHITESPACE(fragment[i]) ) {
-			continue;
-		}
+		/* copied */
 		switch(parser->state) {
 		case GEJSON_START:
-			/* this indicates that there is no parent */
-			parser->object.parent.type = JSON_NULL;
-			if(fragment[i] == '{' && fragment[i] != '[') {
-				parser->state = GEJSON_OBJECT_START;
-				parser->current_element = &parser->object;
-				continue;
-			} else if(fragment[0] == '[') {
-				parser->object.size = 1;
-				parser->object.key = malloc(sizeof(char *));
-				if(parser->object.key == 0)
-					return GEJSON_ERROR_NOMEM;
-				*parser->object.key = NULL;
-				parser->object.value =
-					calloc(1, sizeof(struct json_value));
-				if(parser->object.value == 0)
-					return GEJSON_ERROR_NOMEM;
-				parser->object.value->type = JSON_ARRAY;
-				parser->object.value->array =
-					calloc(1, sizeof(struct gejson_array));
-				if(parser->object.value.array == 0)
-					return GEJSON_ERROR_NOMEM;
-				praser->current_element = 
-					parser->object.value.array;
-				parser->state = GEJSON_ARRAY_START;
-				continue;
-			} else {
-				return GEJSON_ERROR_INVALID;
-			}
+			/* copied */
 			break;
-		case GEJSON_OBJECT_START:
-			struct gejson_obj object = parser->current_element;
-			if(fragment[i] == '\"') {
-				parser->state = GEJSON_OBJECT_KEY;
-				continue;
-			} else if(fragment[i] == '}') {
-				switch(oject->parent.type) {
-				case JSON_NULL:
-					return 0;
-					break;
-				case JSON_OBJECT:
-					parser->current_element =
-						object->parent.object;
-					parser->state = 
-						GEJSON_OBJECT_AFTERVALUE;
-					break;
-				case JSON_ARRAY:
-					parser->current_element =
-						object->parent.array;
-					parser->state = 
-						GEJSON_ARRAY_AFTERVALUE;
-					break;
-				default:
-					return GEJSON_ERROR_INTERNAL;
+		case GEJSON_KEY_BEFORE:
+			/* copied */
+			break;
+		case GEJSON_VALUE_BEFORE:
+			struct gejson_parent *current = &parser->current;
+			if(current->type == GEJSON_ARRAY) {
+				struct gejson_array array = parser->current_element;
+				if(fragment[i] == ']') {
+					switch(array->parent.type) {
+					case JSON_NULL:
+						return 0;
+						break;
+					case JSON_OBJECT:
+						parser->current_element =
+							array->parent.object;
+						parser->state = 
+							GEJSON_OBJECT_AFTERVALUE;
+						break;
+					case JSON_ARRAY:
+						parser->current_element =
+							array->parent.array;
+						parser->state = 
+							GEJSON_ARRAY_AFTERVALUE;
+						break;
+					default:
+						return GEJSON_ERROR_INTERNAL;
+					}
+				} else {
+					parser->state = GEJSON_DECIDEVALUE;
 				}
-			} else {
+			}
+			break;
+		case GEJSON_KEY:
+			/* copied */
+			break;
+		case GEJSON_VALUE_AFTER:
+			switch(fragment[i]) {
+			case ',':
+				parser->state = GEJSON_DECIDEVALUE;
+				continue;
+				break; 
+			case '}':
+				break;
+			default:
 				return GEJSON_ERROR_INVALID;
 			}
-			break;
-		case GEJSON_ARRAY_START:
-			struct gejson_array array = parser->current_element;
-			if(fragment[i] == ']') {
-				switch(array->parent.type) {
-				case JSON_NULL:
-					return 0;
-					break;
-				case JSON_OBJECT:
-					parser->current_element =
-						array->parent.object;
-					parser->state = 
-						GEJSON_OBJECT_AFTERVALUE;
-					break;
-				case JSON_ARRAY:
-					parser->current_element =
-						array->parent.array;
-					parser->state = 
-						GEJSON_ARRAY_AFTERVALUE;
-					break;
-				default:
-					return GEJSON_ERROR_INTERNAL;
-			} else {
-				parser->state = GEJSON_DECIDEVALUE;
-			break;
-		case GEJSON_OBJECT_KEY:
-			struct gejson_object *object = parser->current_element;
-			if(object->key[size - 1] == NULL) {
-				object->key[size - 1] = calloc(2, sizeof(char));
-				if(object->key[size - 1] == NULL)
-					return GEJSON_ERROR_NOMEM;
-			}
-			if(string_incrementor(
-					object->key[size - 1],
-					fragment[i] )) {
-				parser->state = GEJSON_OBJECT_AFTERVALUE;
-			} else {
-				object->key[size - 1] =
-					realloc(object->key[size - 1],
-						strlen(object->key[size - 1]));
-				if(object->key[size - 1] == NULL)
-					return GEJSON_ERROR_NOMEM;
-				object->key[size - 1][strlen(
-						object->key[size - 1]) + 1] =
-					'\0';
-			}
-			break;
-		case GEJSON_OBJECT_AFTERVALUE:
 			break;
 		case GEJSON_DECIDEVALUE:
 			break;

@@ -13,12 +13,12 @@ enum json_type {
 
 enum gejson_parser_state {
 	GEJSON_START,
-	GEJSON_OBJECT_START,
-	GEJSON_ARRAY_START,
-	GEJSON_OBJECT_KEY,
-	GEJSON_OBJECT_AFTERVALUE,
-	GEJSON_ARRAY_AFTERVALUE,
-	GEJSON_DECIDEVALUE
+	GEJSON_KEY_BEFORE,
+	GEJSON_KEY,
+	GEJSON_KEY_AFTER,
+	GEJSON_VALUE_BEFORE,
+	GEJSON_VALUE,
+	GEJSON_VALUE_AFTER
 };
 
 enum gejson_error {
@@ -71,7 +71,7 @@ struct json_value {
 
 struct gejson_parser {
 	struct gejson_obj object;
-	void *current_element;
+	struct gejson_parent current;
 	enum gejson_parser_state state;
 	unsigned long consumed_chars;
 };
