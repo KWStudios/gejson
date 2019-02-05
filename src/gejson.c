@@ -22,6 +22,8 @@ int gejson_value_before(struct gejson_parser *parser, char c);
 int gejson_value(struct gejson_parser *parser, char c);
 int gejson_value_after(struct gejson_parser *parser, char c);
 
+int string_incrementor(char *string, char c);
+
 
 int gejson_push_fragment(struct gejson_parser *parser, char *fragment)
 {
@@ -266,72 +268,6 @@ int gejson_value(struct gejson_parser *parser, char c)
 int gejson_value_after(struct gejson_parser *parser, char c)
 {
 
-}
-
-int gejson_push_fragmet(struct gejson_parser *parser, char *fragment)
-{
-	int incomplete = 1;
-	for(unsigned int i = 0; fragment[i] != '\0'; i++) {
-		/* copied */
-		switch(parser->state) {
-		case GEJSON_START:
-			/* copied */
-			break;
-		case GEJSON_KEY_BEFORE:
-			/* copied */
-			break;
-		case GEJSON_VALUE_BEFORE:
-			struct gejson_parent *current = &parser->current;
-			if(current->type == GEJSON_ARRAY) {
-				struct gejson_array array = parser->current_element;
-				if(fragment[i] == ']') {
-					switch(array->parent.type) {
-					case JSON_NULL:
-						return 0;
-						break;
-					case JSON_OBJECT:
-						parser->current_element =
-							array->parent.object;
-						parser->state = 
-							GEJSON_OBJECT_AFTERVALUE;
-						break;
-					case JSON_ARRAY:
-						parser->current_element =
-							array->parent.array;
-						parser->state = 
-							GEJSON_ARRAY_AFTERVALUE;
-						break;
-					default:
-						return GEJSON_ERROR_INTERNAL;
-					}
-				} else {
-					parser->state = GEJSON_DECIDEVALUE;
-				}
-			}
-			break;
-		case GEJSON_KEY:
-			/* copied */
-			break;
-		case GEJSON_VALUE_AFTER:
-			switch(fragment[i]) {
-			case ',':
-				parser->state = GEJSON_DECIDEVALUE;
-				continue;
-				break; 
-			case '}':
-				break;
-			default:
-				return GEJSON_ERROR_INVALID;
-			}
-			break;
-		case GEJSON_DECIDEVALUE:
-			break;
-		default:
-			return GEJSON_ERROR_INTERNAL;
-		}
-	}
-
-	return incomplete;
 }
 
 /* Returns 1 if string is complete.
