@@ -28,6 +28,7 @@ enum gejson_error {
 };
 
 struct gejson_number {
+	char *string;
 	/* TODO find a way to make numbers useful
 	 * idea: first keep the string,
 	 * then let the user convert it to his choice */

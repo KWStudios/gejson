@@ -162,62 +162,110 @@ int gejson_key_after(struct gejson_parser *parser, char c)
 int gejson_value_before(struct gejson_parser *parser, char c)
 {
 	struct gejson_parent *current = &parser->current;
+	struct gejson_value *value;
+	unsigned long *ao_size;
+	/* fill the local value nd size depending on the type of the parent */
+	if(current->type == JSON_ARRAY) {
+		struct gejson_array *array = current->array;
+		value = array->value;
+		ao_size = &array->size;
+	} else if(current->type == JSON_OBJECT) {
+		struct gejson_object *object = current->object;
+		value = object->value;
+		ao_size = &object->size;
+	} else {
+		return GEJSON_ERROR_INTERNAL;
+	}
+	/* reserve a value in the current object */
+	if(*size == 0) {
+		value = calloc(1, sizeof(struct gejson_value));
+		if(value == 0)
+			return GEJSON_ERROR_NOMEM;
+	} else {
+		value = realloc(*size + 1, sizeof(struct gejson_value));
+		memset(value + *size,
+				0,
+				sizeof(struct gejson_value));
+		if(value == 0)
+			return GEJSON_ERROR_NOMEM;
+	}
+	value += *size;
+	(*size)++;
+	
 	if(c >= '0' && c <= '9' || c == '-') {
-		struct gejson_value *value;
-		unsigned long *ao_size;
 		/* start of number */
-		if(current->type == JSON_ARRAY) {
-			struct gejson_array *array = current->array;
-			value = array->value;
-			ao_size = &array->size;
-		} else if(current->type == JSON_OBJECT) {
-			struct gejson_object *object = current->object;
-			value = object->value;
-			ao_size = &object->size;
-		} else {
-			return GEJSON_ERROR_INTERNAL;
-		}
-
-		if(*size == 0) {
-			value = calloc(
-					1,
-					sizeof(struct gejson_value));
-			if(value == 0)
-				return GEJSON_ERROR_NOMEM;
-		} else {
-			value = realloc(*size + 1,
-					sizeof(struct gejson_value));
-			memset(value + *size,
-					0,
-					sizeof(struct gejson_value));
-			if(value == 0)
-				return GEJSON_ERROR_NOMEM;
-		}
-		(*size)++;
-		value[*size - 1].type = GEJSON_NUMBER;
+		value->type = JSON_NUMBER;
+		value->number.string = calloc(2, sizeof(char));
+		value->number.string[0] = c;
 
 		parser->state = GEJSON_VALUE;
 	} else {
 		switch(c) {
 		case '\"':
 			/* start of string */
+			value->type = JSON_STRING;
+			value->string = calloc(2, sizeof(char));
+			value->string[0] = c;
+
+			parser->state = GEJSON_VALUE;
 			break;
-		case '{' :
+		case '{':
 			/* start of object */
+			value->type = JSON_OBJECT;
+
+			/* TODO correct object setup */
+
+			parser->state = GJESON_KEY_BEFORE;
 			break;
 		case '[':
 			/* start of array */
+			value->type = JSON_ARRAY;
+
+			/* TODO correct array setup */
+
+			parser->state = GEJSON_VALUE_BEFORE;
 			break;
 		case 't':
 			/* start of true */
+			/* the string element of value will be abused here
+			 * to check for incorrect "true", "false" ans "null"
+			 * values */
+			value->type = JSON_TRUE;
+			value->string = calloc(2, sizeof(char));
+			value->string[0] = c;
+
+			parser->state = GEJSON_VALUE;
 			break;
 		case 'f':
 			/* start of false */
+			value->type = JSON_FALSE;
+			value->string = calloc(2, sizeof(char));
+			value->string[0] = c;
+
+			parser->state = GEJSON_VALUE;
+			break;
+		case 'n':
+			/* start of null */
+			value->type = JSON_NULL;
+			value->string = calloc(2, sizeof(char));
+			value->string[0] = c;
+
+			parser->state = GEJSON_VALUE;
 			break;
 		default: return GEJSON_ERROR_INVALID;
 		}
 	}
 	return 1;
+}
+
+int gejson_value(struct gejson_parser *parser, char c)
+{
+
+}
+
+int gejson_value_after(struct gejson_parser *parser, char c)
+{
+
 }
 
 int gejson_push_fragmet(struct gejson_parser *parser, char *fragment)
