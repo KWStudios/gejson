@@ -59,7 +59,7 @@ int gejson_push_fragment(struct gejson_parser *parser, char *fragment)
 			result = gejson_value_after(parser, fragment[i]);
 			break;
 		default: 
-			return GEJSON_ERROR_INVERNAL;
+			return GEJSON_ERROR_INTERNAL;
 		}
 		if(result != 1)
 			return result;
@@ -72,7 +72,7 @@ int gejson_start(struct gejson_parser *parser, char c)
 	/* this indicates that there is no parent */
 	parser->object.parent.type = JSON_NULL;
 	if(c == '{') {
-		parser->current.type = GEJSON_OBJECT;
+		parser->current.type = JSON_OBJECT;
 		parser->current.object = &parser->object;
 		parser->state = GEJSON_KEY_BEFORE;
 		return 1;
@@ -86,7 +86,7 @@ int gejson_start(struct gejson_parser *parser, char c)
 			return GEJSON_ERROR_NOMEM;
 		parser->object.key[0] = NULL;
 		parser->object.value =
-			calloc(1, sizeof(struct json_value));
+			calloc(1, sizeof(struct gejson_value));
 		if(parser->object.value == 0)
 			return GEJSON_ERROR_NOMEM;
 		parser->object.value->type = JSON_ARRAY;
@@ -193,11 +193,13 @@ int gejson_value_before(struct gejson_parser *parser, char c)
 	}
 	value += *size;
 	(*size)++;
-	
+
 	if(c >= '0' && c <= '9' || c == '-') {
 		/* start of number */
 		value->type = JSON_NUMBER;
 		value->number.string = calloc(2, sizeof(char));
+		if(value->number.string == NULL)
+			return GEJSON_ERROR_NOMEM;
 		value->number.string[0] = c;
 
 		parser->state = GEJSON_VALUE;
@@ -207,6 +209,8 @@ int gejson_value_before(struct gejson_parser *parser, char c)
 			/* start of string */
 			value->type = JSON_STRING;
 			value->string = calloc(2, sizeof(char));
+			if(value->string == NULL)
+				return GEJSON_ERROR_NOMEM;
 			value->string[0] = c;
 
 			parser->state = GEJSON_VALUE;
@@ -214,16 +218,24 @@ int gejson_value_before(struct gejson_parser *parser, char c)
 		case '{':
 			/* start of object */
 			value->type = JSON_OBJECT;
-
-			/* TODO correct object setup */
+			value->object = calloc(1, sizeof(struct gejson_object));
+			if(value->object == NULL)
+				return GEJSON_ERROR_NOMEM;
+			value->object->parent = current;
+			current->type = GEJSON_OBJECT;
+			current->object = value;
 
 			parser->state = GJESON_KEY_BEFORE;
 			break;
 		case '[':
 			/* start of array */
 			value->type = JSON_ARRAY;
-
-			/* TODO correct array setup */
+			value->array = calloc(1, sizeof(struct gejson_array));
+			if(value->array == NULL)
+				return GEJSON_ERROR_NOMEM;
+			value->array->parent = current;
+			current->type = GEJSON_ARRAY;
+			current->array = value->array;
 
 			parser->state = GEJSON_VALUE_BEFORE;
 			break;
@@ -234,6 +246,8 @@ int gejson_value_before(struct gejson_parser *parser, char c)
 			 * values */
 			value->type = JSON_TRUE;
 			value->string = calloc(2, sizeof(char));
+			if(value->string == NULL)
+				return GEJSON_ERROR_NOMEM;
 			value->string[0] = c;
 
 			parser->state = GEJSON_VALUE;
@@ -242,6 +256,8 @@ int gejson_value_before(struct gejson_parser *parser, char c)
 			/* start of false */
 			value->type = JSON_FALSE;
 			value->string = calloc(2, sizeof(char));
+			if(value->string == NULL)
+				return GEJSON_ERROR_NOMEM;
 			value->string[0] = c;
 
 			parser->state = GEJSON_VALUE;
@@ -250,6 +266,8 @@ int gejson_value_before(struct gejson_parser *parser, char c)
 			/* start of null */
 			value->type = JSON_NULL;
 			value->string = calloc(2, sizeof(char));
+			if(value->string == NULL)
+				return GEJSON_ERROR_NOMEM;
 			value->string[0] = c;
 
 			parser->state = GEJSON_VALUE;
@@ -267,7 +285,28 @@ int gejson_value(struct gejson_parser *parser, char c)
 
 int gejson_value_after(struct gejson_parser *parser, char c)
 {
+	switch(c) {
+	case ',':
+		if(parser->current.tape == JSON_OBJECT) {
+			parser->state = GEJSON_KEY_BEFORE;
+		} else if(parser->current.type == JSON_ARRAY) {
+			parswer->state = GEJSON_VALUE_BEFORE;
+		} else {
+			return GEJSON_ERROR_INTERNAL;
+		}
+		break;
+	case '}':
 
+
+		break;
+	case ']':
+
+		
+		break;
+	default:
+		return GEJSON_ERROR_INVALID;
+	}
+	return 1;
 }
 
 /* Returns 1 if string is complete.

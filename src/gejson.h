@@ -1,7 +1,7 @@
 #ifndef __GEJSON_H_INCLUDED__
 #define __GEJSON_H_INCLUDED__
 
-enum json_type {
+enum gejson_type {
 	JSON_STRING,
 	JSON_NUMBER,
 	JSON_OBJECT,
@@ -50,18 +50,18 @@ struct gejson_parent {
 struct gejson_obj {
 	unsigned long size;
 	char **key;
-	union json_value *value;
+	struct gejson_value *value;
 	struct gejson_parent parent;
 };
 
 struct gejson_array {
 	unsigned long size;
-	struct json_value *value;
+	struct gejson_value *value;
 	struct gejson_parent parent;
 };
 
-struct json_value {
-	enum json_type type;
+struct gejson_value {
+	enum gejson_type type;
 	union {
 		char *string;
 		struct gejson_number number;
@@ -82,7 +82,7 @@ struct gejson_parser {
 struct gejson_parser *gejson_create_parser(int flags);
 struct gejson_encoder *gejson_create_encoder(int flags);
 
-/* Consumes consecuteiv fragemnts of a json string.
+/* Consumes consecuteive fragemnts of a json string.
  * Returns 1 if the parsing was successful and the json
  * is not complete yet.
  * Returns 0 if the json has been completed by the
